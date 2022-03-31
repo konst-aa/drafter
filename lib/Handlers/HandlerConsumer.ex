@@ -19,31 +19,40 @@ defmodule HandlerConsumer do
     case hack(msg.content) do
       {"!ping", _args} ->
         Api.create_message(msg.channel_id, "pyongyang!")
+
       {"!load", [name]} ->
         case msg.attachments do
           [set | _tail] ->
             Api.create_message(msg.channel_id, "loading set...")
-            output_msg = Loader.load(set, name)
+            output_msg = SetLoader.load(set, name)
             Api.create_message(msg.channel_id, output_msg)
+
           _ ->
             IO.puts("no attachment!")
         end
+        #needs to be done on A DIFFERENT THREAD !!!!
+
       {"!draft", [set | [option | group]]} ->
-        Api.create_message(msg.channel_id, Pod.Registry.new_pod({set, option, group}))
+        Pod.Registry.new_pod(set, option, group, msg.channel_id)
+
       {"!ready", _} ->
-        Api.create_message(msg.channel_id, Pod.Registry.ready_player(msg.author.id))
+        Pod.Registry.ready_player(msg.author.id, msg.channel_id)
+
       {"!killall", _} ->
-        Api.create_message(msg.channel_id, Pod.Registry.kill_all())
+        Pod.Registry.kill_all(msg.channel_id)
+
       {"!kill", [pod_name | _]} ->
-        Api.create_message(msg.channel_id, Pod.Registry.kill_pod(String.to_existing_atom(pod_name)))
-      {"!pick", [card_index | _]} ->
-        case Integer.parse(card_index) do
-          :error -> Api.create_message(msg.channel_id, "invalid index")
-          {index, _} ->
-            Pod.Registry.pick(msg.author.id, index)
-        end
+        Pod.Registry.kill_pod(pod_name, msg.channel_id)
+
+      {"!prune", _} ->
+        Pod.Registry.prune(msg.channel_id)
+
+      {"!pick", [index_str | _]} ->
+        Pod.Registry.pick(msg.author.id, index_str, msg.channel_id)
+
       {"!picks", _} ->
-        Pod.Registry.picks(msg.author.id)
+        Pod.Registry.picks(msg.author.id, msg.channel_id)
+
       _ ->
         :ignore
     end
