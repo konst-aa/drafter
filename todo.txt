@@ -1,0 +1,7 @@
+1) set up universal types (just go through everything again)
+1.5) aliases
+2) typechecking
+3) XML parser
+4) set loader
+5) card loader registry
+6) tests

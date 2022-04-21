@@ -7,6 +7,9 @@ defmodule Packloader.Server do
 
     GenServer.start_link(__MODULE__, loader_dir, name: loader_name)
   end
+  def resize(image, loader_name) do
+    GenServer.call(loader_name, {:resize, image})
+  end
 
   def send_cards(loader_name, dm, cards) do
     GenServer.cast(loader_name, {:send, dm, cards})
@@ -16,6 +19,10 @@ defmodule Packloader.Server do
   def init(loader_dir) do
     File.mkdir(loader_dir)
     {:ok, {:loading, loader_dir}}
+  end
+
+  defp name_paths(loader_dir, x) do
+    for n <- 1..x, do: loader_dir <> Integer.to_string(n) <> ".png"
   end
 
   defp size_right(path) do
@@ -35,21 +42,23 @@ defmodule Packloader.Server do
     [concat_path | concat_rows(rest, loader_dir, n + 1)]
   end
 
+  def handle_call({:resize, image}, _from, {:loading, loader_dir} = state) do
+    path = loader_dir <> "/card.png"
+    File.write(path, image)
+    size_right(path)
+    {:reply, File.read!(path), state}
+  end
+
   def handle_cast({:send, dm, cards}, {:loading, loader_dir} = state) do
     # get images
-    images =
-      cards
-      |> Enum.map(fn x -> Map.get(x, :pic) end)
+    images = Enum.map(cards, fn x -> Map.get(x, :pic) end)
 
     # unique names and resize files
-    paths = for n <- 1..length(images), do: loader_dir <> Integer.to_string(n) <> ".png"
+    paths = name_paths(loader_dir, length(images))
 
     _written_files =
       List.zip([paths, images])
       |> Enum.map(fn {path, image} -> File.write(path, image) end)
-
-    # might want to do resizing during set loading from json... will save 2 seconds... worth?
-    Enum.map(paths, &size_right/1)
 
     # concat rows
     rows = concat_rows(paths, loader_dir, 0)
