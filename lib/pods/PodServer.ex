@@ -14,7 +14,7 @@ defmodule Drafter.Pod.Server do
   @typep pack_number :: integer()
   @typep direction :: :left | :right
   @typep conditions :: %{direction: direction(), pack_number: pack_number()}
-  @typep waiting_group :: %{playerID => boolean()} | %{}
+  @typep waiting_group :: %{Player.playerID() => boolean()} | %{}
   @typep waiting_state ::
            {:waiting,
             %{
@@ -39,19 +39,19 @@ defmodule Drafter.Pod.Server do
   end
 
   # waiting
-  @spec ready(pod_name(), Player.playerID(), channelID()) :: :ok
+  @spec ready(pod_name(), Player.playerID(), channelID()) :: {:noreply, waiting_state()}
   def ready(pod_name, playerID, channelID) do
     GenServer.cast(pod_name, {:ready, pod_name, playerID, channelID})
   end
 
   # running
-  @spec pick(pod_name(), Player.playerID(), Player.card_index()) :: :ok
+  @spec pick(pod_name(), Player.playerID(), Player.card_index()) :: {:noreply, running_state()}
   def pick(pod_name, playerID, card_index) do
     # needs to pass channelID probably
     GenServer.cast(pod_name, {:pick, playerID, card_index})
   end
 
-  @spec picks(pod_name(), Player.playerID()) :: :ok
+  @spec picks(pod_name(), Player.playerID()) :: {:noreply, running_state()}
   def picks(pod_name, playerID) do
     GenServer.cast(pod_name, {:picks, playerID})
   end
@@ -69,7 +69,7 @@ defmodule Drafter.Pod.Server do
   end
 
   # running
-  @spec read_cur_pack(loader_name(), Player.t(), pack_number()) :: :ok
+  @spec read_cur_pack(loader_name(), Player.t(), pack_number()) :: {:noreply, waiting_state()}
   defp read_cur_pack(loader_name, %Player{dm: dm, backlog: backlog} = _player, pack_number) do
     [pack | _] = backlog
     content = "pack #{pack_number} pick #{16 - length(pack)}"
@@ -119,6 +119,7 @@ defmodule Drafter.Pod.Server do
     end
   end
 
+  # running
   @spec flip(:right) :: :left
   defp flip(:right), do: :left
   @spec flip(:left) :: :right
@@ -232,7 +233,7 @@ defmodule Drafter.Pod.Server do
     end
   end
 
-  @spec handle_cast({:picks, playerID()}, running_state()) :: {:noreply, running_state()}
+  @spec handle_cast({:picks, Player.playerID()}, running_state()) :: {:noreply, running_state()}
   def handle_cast({:picks, playerID}, {:running, _, _, player_map, _} = state) do
     {dm, msg} =
       player_map
@@ -254,7 +255,7 @@ defmodule Drafter.Pod.Server do
     {:reply, state, state}
   end
 
-  @spec handle_call(any(), pid(), state()) :: {:reply, "not the time!", state()}
+  @spec handle_call(any(), pid(), state()) :: {:reply, String.t(), state()}
   def handle_call(_, _from, state) do
     {:reply, "not the time!", state}
   end
