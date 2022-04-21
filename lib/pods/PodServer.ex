@@ -2,24 +2,25 @@ defmodule Drafter.Pod.Server do
   use GenServer
 
   alias Drafter.Player
-  alias Drafter.Packloader.Server
 
   @type pod_name :: atom()
 
   @type set :: String.t()
   @type option :: String.t()
-  @type group :: [Player.playerID()] | []
+  @type channelID :: Nostrum.Struct.Channel.id()
+  @type pod_pid :: pid()
 
   @typep loader_name :: atom()
   @typep pack_number :: integer()
   @typep direction :: :left | :right
   @typep conditions :: %{direction: direction(), pack_number: pack_number()}
+  @typep waiting_group :: %{playerID => boolean()} | %{}
   @typep waiting_state ::
            {:waiting,
             %{
               set: set(),
               option: option(),
-              group: group()
+              group: waiting_group()
             }}
   @typep running_state ::
            {:running,
@@ -28,7 +29,9 @@ defmodule Drafter.Pod.Server do
               option: option(),
               player_map: Player.player_map(),
               conditions: conditions()
-            }}
+            }
+            | %{}}
+  @typep state :: running_state() | waiting_state()
 
   @spec start_link(pod_name(), any()) :: GenServer.on_start()
   def start_link(pod_name, state) do
@@ -36,9 +39,9 @@ defmodule Drafter.Pod.Server do
   end
 
   # waiting
-  @spec ready(pod_name(), Player.t(), PodRegistry.channelID()) :: :ok
-  def ready(pod_name, player, channelID) do
-    GenServer.cast(pod_name, {:ready, pod_name, player, channelID})
+  @spec ready(pod_name(), Player.playerID(), channelID()) :: :ok
+  def ready(pod_name, playerID, channelID) do
+    GenServer.cast(pod_name, {:ready, pod_name, playerID, channelID})
   end
 
   # running
@@ -79,12 +82,15 @@ defmodule Drafter.Pod.Server do
   defp crack_and_read_all(loader_name, player_map, pack_number) do
     new_players = Player.crack_all(player_map)
 
-    Enum.map(new_players, fn {_, player} -> read_cur_pack(loader_name, player, pack_number) end)
+    Enum.map(new_players, fn {_, playerID} ->
+      read_cur_pack(loader_name, playerID, pack_number)
+    end)
 
     new_players
   end
 
-  @spec gen_running_state(pod_name(), waiting_state()) :: running_state()
+  @spec gen_running_state(pod_name(), {:waiting, set(), option(), Player.group()}) ::
+          running_state()
   defp gen_running_state(pod_name, {:waiting, set, option, group}) do
     contents = File.read!("./sets/sets.json")
     sets = JSON.decode!(contents)
@@ -124,9 +130,8 @@ defmodule Drafter.Pod.Server do
           Player.player_map(),
           direction(),
           pack_number()
-        ) :: :ok
-
-  defp(passed_messages(loader_name, playerID, player_map, direction, pack_number)) do
+        ) :: :ok | nil | :passed | :next | :over
+  defp passed_messages(loader_name, playerID, player_map, direction, pack_number) do
     crack? =
       player_map
       |> Map.values()
@@ -134,13 +139,13 @@ defmodule Drafter.Pod.Server do
       |> Enum.all?(fn backlog -> backlog == [[]] end)
 
     unless crack? do
-      player = Map.get(player_map, playerID)
-      targetID = Player.pull_direction(player, direction)
+      playerID = Map.get(player_map, playerID)
+      targetID = Player.pull_direction(playerID, direction)
       target = Map.get(player_map, targetID)
 
-      case player do
+      case playerID do
         %Player{backlog: [[] | _]} -> nil
-        %Player{backlog: [_pack | _]} -> read_cur_pack(loader_name, player, pack_number)
+        %Player{backlog: [_pack | _]} -> read_cur_pack(loader_name, playerID, pack_number)
         _ -> nil
       end
 
@@ -163,14 +168,16 @@ defmodule Drafter.Pod.Server do
   end
 
   # server
-  # waiting state
+  @spec init({set(), option(), Player.group()}) :: {:ok, waiting_state()}
   def init({set, option, group}) do
     falses = for _player <- group, do: false
     {:ok, {:waiting, set, option, Map.new(Enum.zip([group, falses]))}}
   end
 
-  def handle_cast({:ready, pod_name, player, channelID}, {:waiting, set, option, group} = state) do
-    group = Map.put(group, player, true)
+  @spec handle_cast({:ready, pod_name(), Player.playerID(), channelID()}, waiting_state()) ::
+          {:noreply, state()}
+  def handle_cast({:ready, pod_name, playerID, channelID}, {:waiting, set, option, group} = state) do
+    group = Map.put(group, playerID, true)
     vals = Map.values(group)
 
     if vals == for(_val <- vals, do: true) do
@@ -182,6 +189,8 @@ defmodule Drafter.Pod.Server do
   end
 
   # running state
+  @spec handle_cast({:pick, Player.playerID(), Player.card_index()}, running_state()) ::
+          {:noreply, running_state()} | true
   def handle_cast(
         {:pick, playerID, card_index},
         {:running, loader_name, option, player_map, draft_info} = state
@@ -223,6 +232,7 @@ defmodule Drafter.Pod.Server do
     end
   end
 
+  @spec handle_cast({:picks, playerID()}, running_state()) :: {:noreply, running_state()}
   def handle_cast({:picks, playerID}, {:running, _, _, player_map, _} = state) do
     {dm, msg} =
       player_map
@@ -233,15 +243,18 @@ defmodule Drafter.Pod.Server do
     {:noreply, state}
   end
 
+  @spec handle_cast(any(), any()) :: {:noreply, :ignore}
   def handle_cast(_, _) do
     {:noreply, :ignore}
   end
 
   # any state
+  @spec handle_call(:state, pid(), state()) :: {:reply, state(), state()}
   def handle_call({:state}, _from, state) do
     {:reply, state, state}
   end
 
+  @spec handle_call(any(), pid(), state()) :: {:reply, "not the time!", state()}
   def handle_call(_, _from, state) do
     {:reply, "not the time!", state}
   end
