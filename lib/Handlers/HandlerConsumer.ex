@@ -30,7 +30,8 @@ defmodule HandlerConsumer do
           _ ->
             IO.puts("no attachment!")
         end
-        #needs to be done on A DIFFERENT THREAD !!!!
+
+      # needs to be done on A DIFFERENT THREAD !!!!
 
       {"!draft", [set | [option | group]]} ->
         Pod.Registry.new_pod(set, option, group, msg.channel_id)
