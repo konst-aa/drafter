@@ -9,6 +9,25 @@ defmodule Drafter.Pod.Server do
   @type option :: String.t()
   @type group :: [Player.playerID()]
 
+  @typep loader_name :: atom()
+  @typep conditions :: %{direction: :left | :right, pack_number: int()}
+  @typep waiting_state ::
+           {:waiting,
+            %{
+              set: set(),
+              option: option(),
+              group: group()
+            }}
+  @typep running_state ::
+           {:running,
+            %{
+              loader_name: loader_name(),
+              option: option(),
+              players: PodRegistry.players(),
+              conditions: conditions()
+            }}
+
+  @spec start_link(pod_name, any()) :: GenServer.on_start()
   def start_link(pod_name, state) do
     GenServer.start_link(__MODULE__, state, name: pod_name)
   end
