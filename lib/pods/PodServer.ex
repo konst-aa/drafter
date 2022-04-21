@@ -7,29 +7,58 @@ defmodule Drafter.Pod.Server do
 
   @type set :: String.t()
   @type option :: String.t()
-  @type group :: [Player.playerID()]
+  @type channelID :: Nostrum.Struct.Channel.id()
+  @type pod_pid :: pid()
 
+  @typep loader_name :: atom()
+  @typep pack_number :: integer()
+  @typep direction :: :left | :right
+  @typep conditions :: %{direction: direction(), pack_number: pack_number()}
+  @typep waiting_group :: %{Player.playerID() => boolean()} | %{}
+  @typep waiting_state ::
+           {:waiting,
+            %{
+              set: set(),
+              option: option(),
+              group: waiting_group()
+            }}
+  @typep running_state ::
+           {:running,
+            %{
+              loader_name: loader_name(),
+              option: option(),
+              player_map: Player.player_map(),
+              conditions: conditions()
+            }
+            | %{}}
+  @typep state :: running_state() | waiting_state()
+
+  @spec start_link(pod_name(), any()) :: GenServer.on_start()
   def start_link(pod_name, state) do
     GenServer.start_link(__MODULE__, state, name: pod_name)
   end
 
   # waiting
-  def ready(pod_name, player, channelID) do
-    GenServer.cast(pod_name, {:ready, pod_name, player, channelID})
+  @spec ready(pod_name(), Player.playerID(), channelID()) :: {:noreply, waiting_state()}
+  def ready(pod_name, playerID, channelID) do
+    GenServer.cast(pod_name, {:ready, pod_name, playerID, channelID})
   end
 
   # running
-  def pick(pod_name, playerID, index) do
+  @spec pick(pod_name(), Player.playerID(), Player.card_index()) :: {:noreply, running_state()}
+  def pick(pod_name, playerID, card_index) do
     # needs to pass channelID probably
-    GenServer.cast(pod_name, {:pick, playerID, index})
+    GenServer.cast(pod_name, {:pick, playerID, card_index})
   end
 
+  @spec picks(pod_name(), Player.playerID()) :: {:noreply, running_state()}
   def picks(pod_name, playerID) do
     GenServer.cast(pod_name, {:picks, playerID})
   end
 
   # helpers
   # waiting
+  @spec mint_loader_name(pod_name()) :: loader_name()
   defp mint_loader_name(pod_name) do
     number =
       pod_name
@@ -40,6 +69,7 @@ defmodule Drafter.Pod.Server do
   end
 
   # running
+  @spec read_cur_pack(loader_name(), Player.t(), pack_number()) :: {:noreply, waiting_state()}
   defp read_cur_pack(loader_name, %Player{dm: dm, backlog: backlog} = _player, pack_number) do
     [pack | _] = backlog
     content = "pack #{pack_number} pick #{16 - length(pack)}"
@@ -47,12 +77,20 @@ defmodule Drafter.Pod.Server do
     Packloader.Server.send_cards(loader_name, dm, pack)
   end
 
-  defp crack_and_read_all(loader_name, players, pack_number) do
-    new_players = Player.crack_all(players)
-    Enum.map(new_players, fn {_, player} -> read_cur_pack(loader_name, player, pack_number) end)
+  @spec crack_and_read_all(loader_name(), Player.player_map(), pack_number()) ::
+          Player.player_map()
+  defp crack_and_read_all(loader_name, player_map, pack_number) do
+    new_players = Player.crack_all(player_map)
+
+    Enum.map(new_players, fn {_, playerID} ->
+      read_cur_pack(loader_name, playerID, pack_number)
+    end)
+
     new_players
   end
 
+  @spec gen_running_state(pod_name(), {:waiting, set(), option(), Player.group()}) ::
+          running_state()
   defp gen_running_state(pod_name, {:waiting, set, option, group}) do
     contents = File.read!("./sets/sets.json")
     sets = JSON.decode!(contents)
@@ -67,38 +105,48 @@ defmodule Drafter.Pod.Server do
         loader_name = mint_loader_name(pod_name)
         {:ok, _loader_pid} = Packloader.Server.start_link(loader_name)
 
-        # make the players
+        # make the player_map
         set = Enum.map(set, &Card.from_map/1)
-        players = Player.gen_players(set, option, Map.keys(group), loader_name)
+        player_map = Player.gen_player_map(set, option, Map.keys(group), loader_name)
 
         # crack the packs
         pack_number = 1
-        players = crack_and_read_all(loader_name, players, pack_number)
+        player_map = crack_and_read_all(loader_name, player_map, pack_number)
 
         # celebrate
-        IO.puts("players generated, draft started")
-        {:running, loader_name, option, players, {:left, pack_number}}
+        IO.puts("player_map generated, draft started")
+        {:running, loader_name, option, player_map, {:left, pack_number}}
     end
   end
 
+  # running
+  @spec flip(:right) :: :left
   defp flip(:right), do: :left
+  @spec flip(:left) :: :right
   defp flip(:left), do: :right
 
-  defp passed_messages(loader_name, playerID, players, direction, pack_number) do
+  @spec passed_messages(
+          loader_name(),
+          Player.playerID(),
+          Player.player_map(),
+          direction(),
+          pack_number()
+        ) :: :ok | nil | :passed | :next | :over
+  defp passed_messages(loader_name, playerID, player_map, direction, pack_number) do
     crack? =
-      players
+      player_map
       |> Map.values()
       |> Enum.map(fn x -> Map.get(x, :backlog) end)
       |> Enum.all?(fn backlog -> backlog == [[]] end)
 
     unless crack? do
-      player = Map.get(players, playerID)
-      targetID = Player.pull_direction(player, direction)
-      target = Map.get(players, targetID)
+      playerID = Map.get(player_map, playerID)
+      targetID = Player.pull_direction(playerID, direction)
+      target = Map.get(player_map, targetID)
 
-      case player do
+      case playerID do
         %Player{backlog: [[] | _]} -> nil
-        %Player{backlog: [_pack | _]} -> read_cur_pack(loader_name, player, pack_number)
+        %Player{backlog: [_pack | _]} -> read_cur_pack(loader_name, playerID, pack_number)
         _ -> nil
       end
 
@@ -121,14 +169,16 @@ defmodule Drafter.Pod.Server do
   end
 
   # server
-  # waiting state
+  @spec init({set(), option(), Player.group()}) :: {:ok, waiting_state()}
   def init({set, option, group}) do
     falses = for _player <- group, do: false
     {:ok, {:waiting, set, option, Map.new(Enum.zip([group, falses]))}}
   end
 
-  def handle_cast({:ready, pod_name, player, channelID}, {:waiting, set, option, group} = state) do
-    group = Map.put(group, player, true)
+  @spec handle_cast({:ready, pod_name(), Player.playerID(), channelID()}, waiting_state()) ::
+          {:noreply, state()}
+  def handle_cast({:ready, pod_name, playerID, channelID}, {:waiting, set, option, group} = state) do
+    group = Map.put(group, playerID, true)
     vals = Map.values(group)
 
     if vals == for(_val <- vals, do: true) do
@@ -140,11 +190,13 @@ defmodule Drafter.Pod.Server do
   end
 
   # running state
+  @spec handle_cast({:pick, Player.playerID(), Player.card_index()}, running_state()) ::
+          {:noreply, running_state()} | true
   def handle_cast(
-        {:pick, playerID, index},
-        {:running, loader_name, option, players, draft_info} = state
+        {:pick, playerID, card_index},
+        {:running, loader_name, option, player_map, draft_info} = state
       ) do
-    case Player.pick(playerID, index, players) do
+    case Player.pick(playerID, card_index, player_map) do
       {:outofbounds, _} ->
         # send messages
         {:noreply, state}
@@ -181,9 +233,10 @@ defmodule Drafter.Pod.Server do
     end
   end
 
-  def handle_cast({:picks, playerID}, {:running, _, _, players, _} = state) do
+  @spec handle_cast({:picks, Player.playerID()}, running_state()) :: {:noreply, running_state()}
+  def handle_cast({:picks, playerID}, {:running, _, _, player_map, _} = state) do
     {dm, msg} =
-      players
+      player_map
       |> Map.get(playerID)
       |> Player.text_picks()
 
@@ -191,15 +244,18 @@ defmodule Drafter.Pod.Server do
     {:noreply, state}
   end
 
+  @spec handle_cast(any(), any()) :: {:noreply, :ignore}
   def handle_cast(_, _) do
     {:noreply, :ignore}
   end
 
   # any state
+  @spec handle_call(:state, pid(), state()) :: {:reply, state(), state()}
   def handle_call({:state}, _from, state) do
     {:reply, state, state}
   end
 
+  @spec handle_call(any(), pid(), state()) :: {:reply, String.t(), state()}
   def handle_call(_, _from, state) do
     {:reply, "not the time!", state}
   end

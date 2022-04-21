@@ -5,8 +5,10 @@ defmodule Drafter.Player do
   alias Drafter.Pod.Registry
 
   @typep dm :: Nostrum.Struct.Channel.dm_channel()
-  @typep dms :: [dm()]
+  @typep dms :: [dm()] | []
   @type playerID :: integer()
+  @type group :: [playerID()] | []
+  @type group_strings :: [String.t()] | []
   @typep seating :: {playerID(), playerID()}
   @type t :: %__MODULE__{
           dm: dm() | nil,
@@ -22,20 +24,27 @@ defmodule Drafter.Player do
   @type card_index :: integer()
   # WTF DO I DO
 
-  @spec seating_helper([playerID()]) :: [seating()]
+  @spec seating_helper(group()) :: [seating()]
   defp seating_helper([left_player | [me | [right_player | others]]] = _seating) do
     [{left_player, right_player} | seating_helper([me | [right_player | others]])]
   end
 
-  @spec seating_helper([playerID()]) :: []
+  @spec seating_helper(group()) :: []
   defp seating_helper(_) do
     []
   end
 
-  @spec seating() :: [seating()]
+  # @spec seating() :: [seating()]
   defp seating([first | _] = players) do
     players = [List.last(players) | players] ++ [first]
     seating_helper(players)
+  end
+
+  @spec group_from_strings(group_strings()) :: group()
+  defp group_from_strings(group_strings) do
+    group_strings
+    |> Enum.map(fn x -> String.trim_leading(x, "<@!") |> String.trim_trailing(">") end)
+    |> Enum.map(&String.to_integer/1)
   end
 
   # THIS SHOULD IMPORT A TYPE FROM OUTSIDE
@@ -50,7 +59,7 @@ defmodule Drafter.Player do
     ]
   end
 
-  @spec gen_helper([dm()]) :: list()
+  # @spec gen_helper([dm()]) :: list()
   def gen_helper(_dms, _packs, _seating, _opt) do
     []
   end
