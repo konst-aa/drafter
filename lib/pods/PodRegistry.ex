@@ -1,5 +1,7 @@
 defmodule Drafter.Pod.Registry do
   use GenServer
+
+  alias Drafter.Pod.Server
   # API
 
   def start_link(_args) do
@@ -20,6 +22,7 @@ defmodule Drafter.Pod.Registry do
   end
 
   # starting
+  # @spec new_pod(Pod.Server.set()
   def new_pod(set, option, group, channelID) do
     GenServer.cast(:registry, {:new_pod, set, option, group, channelID})
   end
@@ -81,6 +84,7 @@ defmodule Drafter.Pod.Registry do
     not Enum.any?(Map.keys(players), fn x -> x in group end)
   end
 
+  # SHOULD BE A DEDICATED GROUP TYPE
   @spec group_from_strings([String.t()]) :: [integer()]
   defp group_from_strings(group) do
     group

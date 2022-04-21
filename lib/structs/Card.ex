@@ -3,7 +3,7 @@ defmodule Drafter.Card do
 
   alias __MODULE__
 
-  @type t :: %__MODULE__{
+  @type t :: %Card{
           name: String.t(),
           set: String.t(),
           rarity: String.t(),
@@ -14,7 +14,7 @@ defmodule Drafter.Card do
           pt: String.t(),
           pic: binary()
         }
-  @type pack :: [__MODULE__.t()] | []
+  @type pack :: [Card.t()] | []
   @typep ghetto_card() :: map()
 
   @spec gen_ghetto_card(any(), any()) :: ghetto_card()
@@ -83,7 +83,7 @@ defmodule Drafter.Card do
     ghetto_card
   end
 
-  @spec from_map(ghetto_card()) :: __MODULE__.t()
+  @spec from_map(ghetto_card()) :: Card.t()
   def from_map(ghetto_card) do
     # convert map keys to known atom, then upload values, returning card struct
     new_map =
@@ -94,7 +94,7 @@ defmodule Drafter.Card do
     struct(Card, new_map)
   end
 
-  @spec pull_photo(__MODULE__.t(), atom()) :: __MODULE__.t()
+  @spec pull_photo(Card.t(), atom()) :: Card.t()
   defp pull_photo(%Card{picURL: picURL} = card, loader_name) do
     pic =
       picURL
