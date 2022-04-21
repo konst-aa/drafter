@@ -1,4 +1,4 @@
-defmodule Packloader.Server do
+defmodule Drafter.Packloader.Server do
   use GenServer
 
   def start_link(loader_name) do
@@ -7,6 +7,7 @@ defmodule Packloader.Server do
 
     GenServer.start_link(__MODULE__, loader_dir, name: loader_name)
   end
+
   def resize(image, loader_name) do
     GenServer.call(loader_name, {:resize, image})
   end
