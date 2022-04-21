@@ -2,9 +2,11 @@ defmodule Drafter.Player do
   defstruct [:dm, :backlog, :picks, :uncracked, :left, :right]
 
   alias __MODULE__
+  alias Drafter.Pod.Registry
 
   @typep dm :: Nostrum.Struct.Channel.dm_channel()
-  @typep playerID :: integer()
+  @typep dms :: [dm()]
+  @type playerID :: integer()
   @typep seating :: {playerID(), playerID()}
   @type t :: %__MODULE__{
           dm: dm() | nil,
@@ -14,10 +16,10 @@ defmodule Drafter.Player do
           left: playerID() | nil,
           right: playerID() | nil
         }
-  @type players :: %{
-          playerID() => Player.t()
+  @type player_map :: %{
+          Player.playerID() => Player.t()
         }
-
+  @type card_index :: integer()
   # WTF DO I DO
 
   @spec seating_helper([playerID()]) :: [seating()]
@@ -30,7 +32,7 @@ defmodule Drafter.Player do
     []
   end
 
-  @spec seating([playerID]) :: [seating()]
+  @spec seating() :: [seating()]
   defp seating([first | _] = players) do
     players = [List.last(players) | players] ++ [first]
     seating_helper(players)
@@ -65,7 +67,7 @@ defmodule Drafter.Player do
     []
   end
 
-  # @spec gen_players(any(), any(), any(), any()) :: players()
+  # @spec gen_players(any(), any(), any(), any()) :: player_map()
   def gen_players(set, "cube", group, loader_name) do
     dms = gen_dms(group)
 
