@@ -3,6 +3,12 @@ defmodule Drafter.Pod.Server do
 
   alias Drafter.Player
 
+  @type pod_name :: atom()
+
+  @type set :: String.t()
+  @type option :: String.t()
+  @type group :: [Player.playerID()]
+
   def start_link(pod_name, state) do
     GenServer.start_link(__MODULE__, state, name: pod_name)
   end

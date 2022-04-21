@@ -1,6 +1,8 @@
 defmodule Drafter.Player do
   defstruct [:dm, :backlog, :picks, :uncracked, :left, :right]
 
+  alias __MODULE__
+
   @typep dm :: Nostrum.Struct.Channel.dm_channel()
   @typep playerID :: integer()
   @typep seating :: {playerID(), playerID()}
@@ -11,6 +13,9 @@ defmodule Drafter.Player do
           uncracked: [Card.pack()] | [] | nil,
           left: playerID() | nil,
           right: playerID() | nil
+        }
+  @type players :: %{
+          playerID() => Player.t()
         }
 
   # WTF DO I DO
@@ -43,7 +48,7 @@ defmodule Drafter.Player do
     ]
   end
 
-  @spec gen_helper([dm()]) :: []
+  @spec gen_helper([dm()]) :: list()
   def gen_helper(_dms, _packs, _seating, _opt) do
     []
   end
@@ -60,7 +65,7 @@ defmodule Drafter.Player do
     []
   end
 
-  @spec gen_players()
+  # @spec gen_players(any(), any(), any(), any()) :: players()
   def gen_players(set, "cube", group, loader_name) do
     dms = gen_dms(group)
 
