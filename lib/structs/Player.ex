@@ -1,19 +1,38 @@
-defmodule Player do
+defmodule Drafter.Player do
   defstruct [:dm, :backlog, :picks, :uncracked, :left, :right]
 
+  @typep dm :: Nostrum.Struct.Channel.dm_channel()
+  @typep playerID :: integer()
+  @typep seating :: {playerID(), playerID()}
+  @type t :: %__MODULE__{
+          dm: dm() | nil,
+          backlog: [Card.pack()] | [] | nil,
+          picks: [Card.t()] | [] | nil,
+          uncracked: [Card.pack()] | [] | nil,
+          left: playerID() | nil,
+          right: playerID() | nil
+        }
+
+  # WTF DO I DO
+
+  @spec seating_helper([playerID()]) :: [seating()]
   defp seating_helper([left_player | [me | [right_player | others]]] = _seating) do
     [{left_player, right_player} | seating_helper([me | [right_player | others]])]
   end
 
+  @spec seating_helper([playerID()]) :: []
   defp seating_helper(_) do
     []
   end
 
+  @spec seating([playerID]) :: [seating()]
   defp seating([first | _] = players) do
     players = [List.last(players) | players] ++ [first]
     seating_helper(players)
   end
 
+  # THIS SHOULD IMPORT A TYPE FROM OUTSIDE
+  @spec gen_helper([dm()], [Card.pack()], [seating()], any()) :: [__MODULE__.t()]
   def gen_helper([dm | rest_dms] = _dms, packs, [my_seating | rest] = _seating, "cube") do
     {mine, others} = Enum.split(packs, 3)
     {left, right} = my_seating
@@ -24,29 +43,37 @@ defmodule Player do
     ]
   end
 
+  @spec gen_helper([dm()]) :: []
   def gen_helper(_dms, _packs, _seating, _opt) do
     []
   end
 
+  @spec gen_dms([Nostrum.Struct.User.t()]) :: [dm()]
   def gen_dms([player | others] = _players) do
     {:ok, player_id} = Nostrum.Snowflake.cast(player)
     {:ok, dm} = Nostrum.Api.create_dm(player_id)
     [dm | gen_dms(others)]
   end
 
+  @spec gen_dms([Nostrum.Struct.User.t()]) :: [dm()]
   def gen_dms([]) do
     []
   end
 
-  def gen_players(set, "cube", group) do
+  @spec gen_players()
+  def gen_players(set, "cube", group, loader_name) do
     dms = gen_dms(group)
 
     for dm <- dms,
-        do: Nostrum.Api.create_message(dm.id, "welcome, packs will be constructed soon!")
+        do:
+          Nostrum.Api.create_message(
+            dm.id,
+            "welcome, packs will be constructed soon, 5-10s per player, sry :/"
+          )
 
     seats = seating(group)
     cards = Enum.shuffle(set)
-    packs = Card.gen_packs(cards, "cube", length(group) * 3)
+    packs = Card.gen_packs(cards, "cube", length(group) * 3, loader_name)
     player_info = gen_helper(dms, packs, seats, "cube")
 
     _players =

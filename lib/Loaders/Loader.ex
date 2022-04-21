@@ -1,8 +1,9 @@
-defmodule SetLoader do
+defmodule Drafter.SetLoader do
   defp gen_ghetto_cards([]) do
     []
   end
 
+  # WTF IS THIS FUNCTION DOING HERE figure out setloading FFS
   defp gen_ghetto_cards([row | rest] = _xml) do
     if String.contains?(row, "<card>") do
       {info, rest} = Enum.split_while(rest, fn x -> not String.contains?(x, "</card>") end)

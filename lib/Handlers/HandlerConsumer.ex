@@ -1,22 +1,26 @@
-defmodule HandlerConsumer do
+defmodule Drafter.Handler.Consumer do
   use Nostrum.Consumer
 
   alias Nostrum.Api
+
+  alias Drafter.Pod.Registry
 
   def start_link do
     IO.puts("started consumer!")
     Consumer.start_link(__MODULE__)
   end
 
+  @spec hack(Nostrum.Struct.Message.t()) :: tuple()
   defp hack(message) do
-    case String.split(message) do
+    case String.split(message.content) do
       [command | args] -> {command, args}
-      _ -> []
+      _ -> {:badmessage}
     end
   end
 
+  @spec handle_event(Nostrum.Consumer.message_create()) :: atom()
   def handle_event({:MESSAGE_CREATE, msg, _ws_state}) do
-    case hack(msg.content) do
+    case hack(msg) do
       {"!ping", _args} ->
         Api.create_message(msg.channel_id, "pyongyang!")
 
@@ -61,6 +65,7 @@ defmodule HandlerConsumer do
 
   # Default event handler, if you don't include this, your consumer WILL crash if
   # you don't have a method definition for each event type.
+  @spec handle_event(any()) :: :noop
   def handle_event(_event) do
     :noop
   end

@@ -1,6 +1,23 @@
-defmodule Card do
+defmodule Drafter.Card do
   defstruct [:name, :set, :rarity, :color, :mc, :cmc, :type, :picURL, :pt, :pic]
 
+  alias __MODULE__
+
+  @type t :: %__MODULE__{
+          name: String.t(),
+          set: String.t(),
+          rarity: String.t(),
+          color: [String.t()] | [],
+          mc: String.t(),
+          type: String.t(),
+          picURL: String.t(),
+          pt: String.t(),
+          pic: binary()
+        }
+  @type pack :: [__MODULE__.t()] | []
+  @typep ghetto_card() :: map()
+
+  @spec gen_ghetto_card(any(), any()) :: ghetto_card()
   def gen_ghetto_card([row | remainder] = _info, ghetto_card) do
     row = String.split(row, ["<", "</", ">\r", ">"])
     {[_, open_tag, contents, identifier, _], other_info} = Enum.split(row, 5)
@@ -61,10 +78,12 @@ defmodule Card do
     end
   end
 
+  @spec gen_ghetto_card(any(), any()) :: ghetto_card()
   def gen_ghetto_card(_, ghetto_card) do
     ghetto_card
   end
 
+  @spec from_map(ghetto_card()) :: __MODULE__.t()
   def from_map(ghetto_card) do
     # convert map keys to known atom, then upload values, returning card struct
     new_map =
@@ -75,22 +94,26 @@ defmodule Card do
     struct(Card, new_map)
   end
 
-  defp pull_photo(%Card{picURL: picURL} = card) do
+  @spec pull_photo(__MODULE__.t(), atom()) :: __MODULE__.t()
+  defp pull_photo(%Card{picURL: picURL} = card, loader_name) do
     pic =
       picURL
       |> HTTPoison.get!()
       |> Map.get(:body)
+      |> Packloader.Server.resize(loader_name)
 
     _new_card = Map.put(card, :pic, pic)
   end
 
-  def gen_packs(_cards, _opt, 0) do
+  @spec gen_packs(pack(), String.t(), integer(), atom()) :: [pack()]
+  def gen_packs(_cards, _opt, 0, _loader_name) do
     []
   end
 
-  def gen_packs(cards, "cube", n) do
-    {pack, rest} = Enum.split(cards, 3)
-    pack = Enum.map(pack, &pull_photo/1)
-    [pack | gen_packs(rest, "cube", n - 1)]
+  @spec gen_packs(pack(), String.t(), integer(), atom()) :: [pack()]
+  def gen_packs(cards, "cube", n, loader_name) do
+    {pack, rest} = Enum.split(cards, 15)
+    pack = Enum.map(pack, fn card -> pull_photo(card, loader_name) end)
+    [pack | gen_packs(rest, "cube", n - 1, loader_name)]
   end
 end

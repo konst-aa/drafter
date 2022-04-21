@@ -24,7 +24,8 @@ defmodule Drafter.MixProject do
     [
       {:nostrum, "~> 0.5.1"},
       {:httpoison, "~> 1.8.0"},
-      {:json, "~> 1.4"}
+      {:json, "~> 1.4"},
+      {:dialyxir, "~> 1.0", only: [:dev], runtime: false}
     ]
   end
 end

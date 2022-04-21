@@ -1,4 +1,4 @@
-defmodule HandlerSupervisor do
+defmodule Drafter.Handler.Supervisor do
   use Supervisor
 
   def start_link(args) do

@@ -1,5 +1,7 @@
-defmodule Pod.Server do
+defmodule Drafter.Pod.Server do
   use GenServer
+
+  alias Drafter.Player
 
   def start_link(pod_name, state) do
     GenServer.start_link(__MODULE__, state, name: pod_name)
@@ -48,6 +50,7 @@ defmodule Pod.Server do
   defp gen_running_state(pod_name, {:waiting, set, option, group}) do
     contents = File.read!("./sets/sets.json")
     sets = JSON.decode!(contents)
+    IO.puts("starting")
 
     case Map.get(sets, set, :undefined) do
       :undefined ->
@@ -60,7 +63,7 @@ defmodule Pod.Server do
 
         # make the players
         set = Enum.map(set, &Card.from_map/1)
-        players = Player.gen_players(set, option, Map.keys(group))
+        players = Player.gen_players(set, option, Map.keys(group), loader_name)
 
         # crack the packs
         pack_number = 1
@@ -118,7 +121,7 @@ defmodule Pod.Server do
     {:ok, {:waiting, set, option, Map.new(Enum.zip([group, falses]))}}
   end
 
-  def handle_cast({:ready, pod_name, player, channelID}, {:waiting, _set, _option, group} = state) do
+  def handle_cast({:ready, pod_name, player, channelID}, {:waiting, set, option, group} = state) do
     group = Map.put(group, player, true)
     vals = Map.values(group)
 
@@ -126,7 +129,7 @@ defmodule Pod.Server do
       {:noreply, gen_running_state(pod_name, state)}
     else
       Nostrum.Api.create_message(channelID, "verified!")
-      {:noreply, state}
+      {:noreply, {:waiting, set, option, group}}
     end
   end
 
@@ -180,6 +183,10 @@ defmodule Pod.Server do
 
     Nostrum.Api.create_message(dm.id, msg)
     {:noreply, state}
+  end
+
+  def handle_cast(_, _) do
+    {:noreply, :ignore}
   end
 
   # any state

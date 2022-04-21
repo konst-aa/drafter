@@ -1,4 +1,4 @@
-defmodule Pod.Registry do
+defmodule Drafter.Pod.Registry do
   use GenServer
   # API
 
@@ -34,7 +34,7 @@ defmodule Pod.Registry do
   end
 
   def picks(playerID, channelID) do
-    GenServer.cast(:registry, {:pick, playerID, channelID})
+    GenServer.cast(:registry, {:picks, playerID, channelID})
   end
 
   # helpers
@@ -81,6 +81,7 @@ defmodule Pod.Registry do
     not Enum.any?(Map.keys(players), fn x -> x in group end)
   end
 
+  @spec group_from_strings([String.t()]) :: [integer()]
   defp group_from_strings(group) do
     group
     |> Enum.map(fn x -> String.trim_leading(x, "<@!") |> String.trim_trailing(">") end)
@@ -94,7 +95,7 @@ defmodule Pod.Registry do
   end
 
   # maintenance
-  def handle_cast({:kill_pod, target_pod, channelID}, _from, {_players, pods} = state) do
+  def handle_cast({:kill_pod, target_pod, channelID}, {_players, pods} = state) do
     target_pod = String.to_existing_atom(target_pod)
 
     case Map.get(pods, target_pod, :undefined) do
@@ -187,5 +188,9 @@ defmodule Pod.Registry do
         Pod.Server.picks(pod_name, playerID)
         {:noreply, state}
     end
+  end
+
+  def handle_cast(_, state) do
+    {:noreply, state}
   end
 end
