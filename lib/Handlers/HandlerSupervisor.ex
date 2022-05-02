@@ -7,7 +7,7 @@ defmodule Drafter.Handler.Supervisor do
 
   @impl true
   def init(_init_arg) do
-    children = [HandlerConsumer]
+    children = [Drafter.Handler.Consumer]
 
     Supervisor.init(children, strategy: :one_for_one)
   end

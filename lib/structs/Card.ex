@@ -2,6 +2,7 @@ defmodule Drafter.Card do
   defstruct [:name, :set, :rarity, :color, :mc, :cmc, :type, :picURL, :pt, :pic]
 
   alias __MODULE__
+  alias Drafter.Packloader.Server
 
   @type t :: %Card{
           name: String.t(),
@@ -100,7 +101,7 @@ defmodule Drafter.Card do
       picURL
       |> HTTPoison.get!()
       |> Map.get(:body)
-      |> Packloader.Server.resize(loader_name)
+      |> Server.resize(loader_name)
 
     _new_card = Map.put(card, :pic, pic)
   end

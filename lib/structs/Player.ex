@@ -2,7 +2,10 @@ defmodule Drafter.Player do
   defstruct [:dm, :backlog, :picks, :uncracked, :left, :right]
 
   alias __MODULE__
-  alias Drafter.Pod.Registry
+
+  alias Drafter.Pod.Server
+  alias Drafter.Card
+  alias Drafter.Packloader.Server, as: PackLoader
 
   @typep dm :: Nostrum.Struct.Channel.dm_channel()
   @typep dms :: [dm()] | []
@@ -22,6 +25,7 @@ defmodule Drafter.Player do
           Player.playerID() => Player.t()
         }
   @type card_index :: integer()
+  @type card_index_string :: String.t()
   # WTF DO I DO
 
   @spec seating_helper(group()) :: [seating()]
@@ -41,15 +45,15 @@ defmodule Drafter.Player do
   end
 
   @spec group_from_strings(group_strings()) :: group()
-  defp group_from_strings(group_strings) do
+  def group_from_strings(group_strings) do
     group_strings
-    |> Enum.map(fn x -> String.trim_leading(x, "<@!") |> String.trim_trailing(">") end)
+    |> Enum.map(fn x -> String.trim_leading(x, "<@") |> String.trim_trailing(">") end)
     |> Enum.map(&String.to_integer/1)
   end
 
   # THIS SHOULD IMPORT A TYPE FROM OUTSIDE
-  @spec gen_helper([dm()], [Card.pack()], [seating()], any()) :: [__MODULE__.t()]
-  def gen_helper([dm | rest_dms] = _dms, packs, [my_seating | rest] = _seating, "cube") do
+  @spec gen_helper(dms(), [Card.pack()], [seating()], Server.option()) :: [__MODULE__.t()]
+  def gen_helper([dm | rest_dms], packs, [my_seating | rest], "cube") do
     {mine, others} = Enum.split(packs, 3)
     {left, right} = my_seating
 
@@ -59,25 +63,27 @@ defmodule Drafter.Player do
     ]
   end
 
-  # @spec gen_helper([dm()]) :: list()
+  @spec gen_helper(dms(), [Card.pack()], [seating()], Server.option()) :: list()
   def gen_helper(_dms, _packs, _seating, _opt) do
     []
   end
 
-  @spec gen_dms([Nostrum.Struct.User.t()]) :: [dm()]
+  @spec gen_dms([Nostrum.Struct.User.t()]) :: dms()
   def gen_dms([player | others] = _players) do
     {:ok, player_id} = Nostrum.Snowflake.cast(player)
     {:ok, dm} = Nostrum.Api.create_dm(player_id)
     [dm | gen_dms(others)]
   end
 
-  @spec gen_dms([Nostrum.Struct.User.t()]) :: [dm()]
+  @spec gen_dms([Nostrum.Struct.User.t()]) :: dms()
   def gen_dms([]) do
     []
   end
 
-  # @spec gen_players(any(), any(), any(), any()) :: player_map()
-  def gen_players(set, "cube", group, loader_name) do
+  @spec gen_player_map(Server.set(), Server.option(), group(), Server.loader_name()) ::
+          player_map()
+  def gen_player_map(set, "cube", group, loader_name) do
+    loaded_set = Enum.map(set, &Card.from_map/1)
     dms = gen_dms(group)
 
     for dm <- dms,
@@ -88,7 +94,7 @@ defmodule Drafter.Player do
           )
 
     seats = seating(group)
-    cards = Enum.shuffle(set)
+    cards = Enum.shuffle(loaded_set)
     packs = Card.gen_packs(cards, "cube", length(group) * 3, loader_name)
     player_info = gen_helper(dms, packs, seats, "cube")
 

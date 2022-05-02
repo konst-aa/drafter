@@ -1,4 +1,6 @@
 defmodule Drafter.SetLoader do
+  alias Drafter.Card
+
   defp gen_ghetto_cards([]) do
     []
   end

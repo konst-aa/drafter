@@ -27,9 +27,9 @@ defmodule Drafter.Pod.Registry do
   end
 
   # maintenance
-  @spec kill_pod(Server.pod_name(), Server.channelID()) :: :ok
-  def kill_pod(pod, channelID) do
-    GenServer.cast(:registry, {:kill_pod, pod, channelID})
+  @spec kill_pod(Server.pod_string(), Server.channelID()) :: :ok
+  def kill_pod(pod_name, channelID) do
+    GenServer.cast(:registry, {:kill_pod, pod_name, channelID})
   end
 
   @spec kill_all(Server.channelID()) :: :ok
@@ -54,9 +54,9 @@ defmodule Drafter.Pod.Registry do
   end
 
   # running
-  @spec pick(Player.playerID(), Player.card_index(), Server.channelID()) :: :ok
-  def pick(playerID, card_index, channelID) do
-    GenServer.cast(:registry, {:pick, playerID, card_index, channelID})
+  @spec pick(Player.playerID(), Player.card_index_string(), Server.channelID()) :: :ok
+  def pick(playerID, card_index_string, channelID) do
+    GenServer.cast(:registry, {:pick, playerID, card_index_string, channelID})
   end
 
   @spec picks(Player.playerID(), Server.channelID()) :: :ok
@@ -80,7 +80,7 @@ defmodule Drafter.Pod.Registry do
   defp register_name(pod_name, group, pod_pid, %{locations: locations, pods: pods}) do
     pod_name_repeated = for _member <- group, do: pod_name
     new_locations = Map.new(Enum.zip([group, pod_name_repeated]))
-    {Map.merge(locations, new_locations), Map.put(pods, pod_name, pod_pid)}
+    %{locations: Map.merge(locations, new_locations), pods: Map.put(pods, pod_name, pod_pid)}
   end
 
   @spec first_free([Server.pod_name()], integer()) :: Server.pod_name()
@@ -123,10 +123,10 @@ defmodule Drafter.Pod.Registry do
   end
 
   # maintenance
-  @spec handle_cast({:kill_pod, Server.pod_name(), Server.channelID()}, state()) ::
+  @spec handle_cast({:kill_pod, Server.pod_string(), Server.channelID()}, state()) ::
           {:noreply, state()}
-  def handle_cast({:kill_pod, target_pod, channelID}, %{pods: pods} = state) do
-    target_pod = String.to_existing_atom(target_pod)
+  def handle_cast({:kill_pod, target_pod_string, channelID}, %{pods: pods} = state) do
+    target_pod = String.to_existing_atom(target_pod_string)
 
     case Map.get(pods, target_pod, :undefined) do
       :undefined ->
@@ -144,7 +144,7 @@ defmodule Drafter.Pod.Registry do
   def handle_cast({:kill_all, channelID}, {_players, pods} = _state) do
     for pod <- Map.values(pods), do: Process.exit(pod, :killed)
     Nostrum.Api.create_message(channelID, "all pods killed!")
-    {:noreply, {Map.new(), Map.new()}}
+    {:noreply, %{locations: Map.new(), pods: Map.new()}}
   end
 
   @spec handle_cast({:prune, Server.channelID()}, state()) :: {:noreply, state()}
@@ -181,7 +181,7 @@ defmodule Drafter.Pod.Registry do
     end
   end
 
-  @spec handle_cast({:ready_player, Server.playerID(), Server.channelID()}, state()) ::
+  @spec handle_cast({:ready_player, Player.playerID(), Server.channelID()}, state()) ::
           {:noreply, state()}
   def handle_cast({:ready_player, playerID, channelID}, state) do
     pod_name = whereis_player(playerID, pruned(state))
@@ -198,10 +198,10 @@ defmodule Drafter.Pod.Registry do
   end
 
   # running
-  @spec handle_cast({:pick, Server.playerID(), String.t(), Server.channelID()}, state()) ::
+  @spec handle_cast({:pick, Player.playerID(), String.t(), Server.channelID()}, state()) ::
           {:noreply, state()}
-  def handle_cast({:pick, playerID, index_str, channelID}, state) do
-    case Integer.parse(index_str) do
+  def handle_cast({:pick, playerID, card_index_string, channelID}, state) do
+    case Integer.parse(card_index_string) do
       :error ->
         Nostrum.Api.create_message(channelID, "invalid index")
         {:noreply, pruned(state)}
@@ -219,7 +219,7 @@ defmodule Drafter.Pod.Registry do
     end
   end
 
-  @spec handle_cast({:picks, Server.playerID(), Server.channelID()}, state()) ::
+  @spec handle_cast({:picks, Player.playerID(), Server.channelID()}, state()) ::
           {:noreply, state()}
   def handle_cast({:picks, playerID, channelID}, state) do
     case whereis_player(playerID, state) do

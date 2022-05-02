@@ -4,8 +4,8 @@ defmodule Drafter.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      HandlerSupervisor,
-      Pod.Registry
+      Drafter.Handler.Supervisor,
+      Drafter.Pod.Registry
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one)

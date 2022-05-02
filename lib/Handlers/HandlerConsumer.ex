@@ -18,7 +18,7 @@ defmodule Drafter.Handler.Consumer do
     end
   end
 
-  @spec handle_event(Nostrum.Consumer.message_create()) :: atom()
+  @spec handle_event(Nostrum.Consumer.message_create()) :: :ok | :ignore
   def handle_event({:MESSAGE_CREATE, msg, _ws_state}) do
     case hack(msg) do
       {"!ping", _args} ->
@@ -30,33 +30,35 @@ defmodule Drafter.Handler.Consumer do
             Api.create_message(msg.channel_id, "loading set...")
             output_msg = SetLoader.load(set, name)
             Api.create_message(msg.channel_id, output_msg)
+            :ok
 
           _ ->
             IO.puts("no attachment!")
+            :ok
         end
 
       # needs to be done on A DIFFERENT THREAD !!!!
 
       {"!draft", [set | [option | group]]} ->
-        Pod.Registry.new_pod(set, option, group, msg.channel_id)
+        Registry.new_pod(set, option, group, msg.channel_id)
 
       {"!ready", _} ->
-        Pod.Registry.ready_player(msg.author.id, msg.channel_id)
+        Registry.ready_player(msg.author.id, msg.channel_id)
 
       {"!killall", _} ->
-        Pod.Registry.kill_all(msg.channel_id)
+        Registry.kill_all(msg.channel_id)
 
       {"!kill", [pod_name | _]} ->
-        Pod.Registry.kill_pod(pod_name, msg.channel_id)
+        Registry.kill_pod(pod_name, msg.channel_id)
 
       {"!prune", _} ->
-        Pod.Registry.prune(msg.channel_id)
+        Registry.prune(msg.channel_id)
 
       {"!pick", [index_str | _]} ->
-        Pod.Registry.pick(msg.author.id, index_str, msg.channel_id)
+        Registry.pick(msg.author.id, index_str, msg.channel_id)
 
       {"!picks", _} ->
-        Pod.Registry.picks(msg.author.id, msg.channel_id)
+        Registry.picks(msg.author.id, msg.channel_id)
 
       _ ->
         :ignore
