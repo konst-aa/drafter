@@ -5,7 +5,7 @@ defmodule Drafter.Player do
 
   alias Drafter.Pod.Server
   alias Drafter.Card
-  alias Drafter.Packloader.Server, as: PackLoader
+  # alias Drafter.Packloader.Server, as: PackLoader
 
   @typep dm :: Nostrum.Struct.Channel.dm_channel()
   @typep dms :: [dm()] | []
@@ -13,6 +13,7 @@ defmodule Drafter.Player do
   @type group :: [playerID()] | []
   @type group_strings :: [String.t()] | []
   @typep seating :: {playerID(), playerID()}
+  @typep seating_list :: [seating()]
   @type t :: %__MODULE__{
           dm: dm() | nil,
           backlog: [Card.pack()] | [] | nil,
@@ -28,20 +29,19 @@ defmodule Drafter.Player do
   @type card_index_string :: String.t()
   # WTF DO I DO
 
-  @spec seating_helper(group()) :: [seating()]
+  @spec seating_helper(group()) :: seating_list() | []
   defp seating_helper([left_player | [me | [right_player | others]]] = _seating) do
     [{left_player, right_player} | seating_helper([me | [right_player | others]])]
   end
 
-  @spec seating_helper(group()) :: []
   defp seating_helper(_) do
     []
   end
 
-  # @spec seating() :: [seating()]
-  defp seating([first | _] = players) do
-    players = [List.last(players) | players] ++ [first]
-    seating_helper(players)
+  @spec seating(group()) :: seating_list()
+  defp seating([first | _] = group) do
+    group = [List.last(group) | group] ++ [first]
+    seating_helper(group)
   end
 
   @spec group_from_strings(group_strings()) :: group()
@@ -52,7 +52,7 @@ defmodule Drafter.Player do
   end
 
   # THIS SHOULD IMPORT A TYPE FROM OUTSIDE
-  @spec gen_helper(dms(), [Card.pack()], [seating()], Server.option()) :: [__MODULE__.t()]
+  @spec gen_helper(dms(), Card.packs(), seating_list(), Server.option()) :: [Player.t()]
   def gen_helper([dm | rest_dms], packs, [my_seating | rest], "cube") do
     {mine, others} = Enum.split(packs, 3)
     {left, right} = my_seating
@@ -63,19 +63,17 @@ defmodule Drafter.Player do
     ]
   end
 
-  @spec gen_helper(dms(), [Card.pack()], [seating()], Server.option()) :: list()
   def gen_helper(_dms, _packs, _seating, _opt) do
     []
   end
 
-  @spec gen_dms([Nostrum.Struct.User.t()]) :: dms()
-  def gen_dms([player | others] = _players) do
-    {:ok, player_id} = Nostrum.Snowflake.cast(player)
-    {:ok, dm} = Nostrum.Api.create_dm(player_id)
+  @spec gen_dms(group()) :: dms()
+  def gen_dms([playerID | others]) do
+    {:ok, snowflake_playerID} = Nostrum.Snowflake.cast(playerID)
+    {:ok, dm} = Nostrum.Api.create_dm(snowflake_playerID)
     [dm | gen_dms(others)]
   end
 
-  @spec gen_dms([Nostrum.Struct.User.t()]) :: dms()
   def gen_dms([]) do
     []
   end
@@ -103,6 +101,7 @@ defmodule Drafter.Player do
       |> Map.new()
   end
 
+  @spec crack_pack(Player.t()) :: Player.t()
   defp crack_pack(%Player{uncracked: [pack | rest]} = player) do
     _new_player =
       player
@@ -114,13 +113,15 @@ defmodule Drafter.Player do
     player
   end
 
-  def crack_all(players) do
+  @spec crack_all(player_map()) :: player_map()
+  def crack_all(player_map) do
     _new_players =
-      players
+      player_map
       |> Enum.map(fn {k, v} -> {k, crack_pack(v)} end)
       |> Map.new()
   end
 
+  @spec pull_direction(Player.t(), Server.direction()) :: playerID() | nil
   def pull_direction(player, direction) do
     case direction do
       :left -> Map.get(player, :left)
@@ -129,14 +130,16 @@ defmodule Drafter.Player do
   end
 
   # takes a card out of a pack, card_index must be an integer
-  def pick(playerID, card_index, players) do
-    player = Map.get(players, playerID)
+  @spec pick(playerID(), card_index(), player_map()) ::
+          {nil | :ok | :nopack | :outofbounds, player_map()}
+  def pick(playerID, card_index, player_map) do
+    player = Map.get(player_map, playerID)
 
     case player do
       %Player{backlog: [pack | rest_packs], picks: picks} ->
         case List.pop_at(pack, card_index) do
           {nil, _} ->
-            {:outofbounds, players}
+            {:outofbounds, player_map}
 
           {card, new_pack} ->
             player =
@@ -144,33 +147,35 @@ defmodule Drafter.Player do
               |> Map.put(:picks, [card] ++ picks)
               |> Map.put(:backlog, [new_pack | rest_packs])
 
-            players = Map.put(players, playerID, player)
-            {:ok, players}
+            player_map = Map.put(player_map, playerID, player)
+            {:ok, player_map}
         end
 
       _ ->
-        {:nopack, players}
+        {:nopack, player_map}
     end
   end
 
   # passes current pack in a direction
-  def pass_pack(playerID, direction, players) do
-    player = Map.get(players, playerID)
+  @spec pass_pack(playerID(), Server.direction(), player_map()) :: player_map()
+  def pass_pack(playerID, direction, player_map) do
+    player = Map.get(player_map, playerID)
     %Player{backlog: [pack | rest_packs]} = player
     player = Map.put(player, :backlog, rest_packs)
 
-    players = Map.put(players, playerID, player)
+    player_map = Map.put(player_map, playerID, player)
     targetID = pull_direction(player, direction)
-    target = Map.get(players, targetID)
+    target = Map.get(player_map, targetID)
     new_target_packs = Map.get(target, :backlog) ++ [pack]
     target = Map.put(target, :backlog, new_target_packs)
 
-    _new_players =
-      players
+    _new_player_map =
+      player_map
       |> Map.put(playerID, player)
       |> Map.put(targetID, target)
   end
 
+  @spec text_picks(Player.t()) :: {dm(), String.t()}
   def text_picks(player) do
     message =
       player

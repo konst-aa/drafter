@@ -15,7 +15,9 @@ defmodule Drafter.Card do
           pt: String.t(),
           pic: binary()
         }
+
   @type pack :: [Card.t()] | []
+  @typep packs :: [pack()] | []
   @typep ghetto_card() :: map()
 
   @spec gen_ghetto_card(any(), any()) :: ghetto_card()
@@ -79,7 +81,6 @@ defmodule Drafter.Card do
     end
   end
 
-  @spec gen_ghetto_card(any(), any()) :: ghetto_card()
   def gen_ghetto_card(_, ghetto_card) do
     ghetto_card
   end
@@ -106,12 +107,11 @@ defmodule Drafter.Card do
     _new_card = Map.put(card, :pic, pic)
   end
 
-  @spec gen_packs(pack(), String.t(), integer(), atom()) :: [pack()]
+  @spec gen_packs(pack(), String.t(), integer(), atom()) :: packs()
   def gen_packs(_cards, _opt, 0, _loader_name) do
     []
   end
 
-  @spec gen_packs(pack(), String.t(), integer(), atom()) :: [pack()]
   def gen_packs(cards, "cube", n, loader_name) do
     {pack, rest} = Enum.split(cards, 15)
     pack = Enum.map(pack, fn card -> pull_photo(card, loader_name) end)
