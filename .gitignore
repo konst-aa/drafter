@@ -24,3 +24,6 @@ drafter-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# Ignore config.exs file so the token isn't leaked every time the code is pushed.
+/config.exs
