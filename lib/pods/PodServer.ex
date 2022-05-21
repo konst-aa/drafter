@@ -12,9 +12,9 @@ defmodule Drafter.Pod.Server do
   @type channelID :: Nostrum.Struct.Channel.id()
   @type pod_pid :: pid()
   @type loader_name :: atom()
+  @type direction :: :left | :right
 
   @typep pack_number :: integer()
-  @typep direction :: :left | :right
   @typep conditions :: %{direction: direction(), pack_number: pack_number()}
   @typep waiting_group :: %{Player.playerID() => boolean()} | %{}
   @typep waiting_state ::
@@ -189,7 +189,7 @@ defmodule Drafter.Pod.Server do
   @spec handle_cast({:ready, pod_name(), Player.playerID(), channelID()}, waiting_state()) ::
           {:noreply, state()}
   def handle_cast({:ready, pod_name, playerID, channelID}, {:waiting, state_map}) do
-    %{set: set, option: option, group: group} = state_map
+    %{group: group} = state_map
     group = Map.put(group, playerID, true)
     vals = Map.values(group)
 
@@ -217,14 +217,14 @@ defmodule Drafter.Pod.Server do
         # send messages
         {:noreply, {:running, state_map}}
 
-      {:ok, new_players} ->
+      {:ok, new_player_map} ->
         %{direction: direction, pack_number: pack_number} = conditions
-        new_players = Player.pass_pack(playerID, direction, new_players)
+        new_player_map = Player.pass_pack(playerID, direction, new_player_map)
 
-        case passed_messages(loader_name, playerID, new_players, direction, pack_number) do
+        case passed_messages(loader_name, playerID, new_player_map, direction, pack_number) do
           :over ->
             # end the draft
-            new_players
+            new_player_map
             |> Enum.map(fn {_id, player} -> Player.text_picks(player) end)
             |> Enum.map(fn {dm, msg} ->
               Nostrum.Api.create_message(dm.id, "draft over, picks: \n" <> msg)
@@ -234,7 +234,7 @@ defmodule Drafter.Pod.Server do
 
           :next ->
             new_number = pack_number + 1
-            new_players = crack_and_read_all(loader_name, new_players, new_number)
+            new_player_map = crack_and_read_all(loader_name, new_player_map, new_number)
 
             new_conditions = %{direction: flip(direction), pack_number: new_number}
 
@@ -243,7 +243,7 @@ defmodule Drafter.Pod.Server do
               %{
                 loader_name: loader_name,
                 option: option,
-                player_maps: new_players,
+                player_map: new_player_map,
                 conditions: new_conditions
               }}}
 
@@ -253,7 +253,7 @@ defmodule Drafter.Pod.Server do
               %{
                 loader_name: loader_name,
                 option: option,
-                player_maps: new_players,
+                player_map: new_player_map,
                 conditions: conditions
               }}}
         end
