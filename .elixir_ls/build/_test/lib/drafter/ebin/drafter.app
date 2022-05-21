@@ -1,0 +1,13 @@
+{application,drafter,
+             [{applications,[kernel,stdlib,elixir,nostrum,httpoison,json]},
+              {description,"drafter"},
+              {modules,['Elixir.Drafter.Application','Elixir.Drafter.Card',
+                        'Elixir.Drafter.Handler.Consumer',
+                        'Elixir.Drafter.Handler.Supervisor',
+                        'Elixir.Drafter.Packloader.Server',
+                        'Elixir.Drafter.Player','Elixir.Drafter.Pod.Registry',
+                        'Elixir.Drafter.Pod.Server',
+                        'Elixir.Drafter.SetLoader']},
+              {registered,[]},
+              {vsn,"0.1.0"},
+              {mod,{'Elixir.Drafter.Application',[]}}]}.
