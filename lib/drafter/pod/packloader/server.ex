@@ -1,4 +1,4 @@
-defmodule Drafter.Packloader.Server do
+defmodule Drafter.Pod.Packloader.Server do
   use GenServer
 
   def start_link(loader_name) do

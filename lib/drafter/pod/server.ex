@@ -1,39 +1,7 @@
 defmodule Drafter.Pod.Server do
   use GenServer
 
-  alias Drafter.Player
-  alias Drafter.Packloader
-
-  @type pod_name :: atom()
-  @type pod_string :: String.t()
-
-  @type set :: String.t()
-  @type option :: String.t()
-  @type channelID :: Nostrum.Struct.Channel.id()
-  @type pod_pid :: pid()
-  @type loader_name :: atom()
-  @type direction :: :left | :right
-
-  @typep pack_number :: integer()
-  @typep conditions :: %{direction: direction(), pack_number: pack_number()}
-  @typep waiting_group :: %{Player.playerID() => boolean()} | %{}
-  @typep waiting_state ::
-           {:waiting,
-            %{
-              set: set(),
-              option: option(),
-              group: waiting_group()
-            }}
-  @typep running_state ::
-           {:running,
-            %{
-              loader_name: loader_name(),
-              option: option(),
-              player_map: Player.player_map(),
-              conditions: conditions()
-            }
-            | %{}}
-  @typep state :: running_state() | waiting_state()
+  alias Drafter.Structs.Player
 
   @spec start_link(pod_name(), any()) :: GenServer.on_start()
   def start_link(pod_name, state) do

@@ -1,3 +1,4 @@
+# super deprecated
 defmodule Drafter.SetLoader do
   alias Drafter.Card
 

@@ -1,4 +1,4 @@
-defmodule Drafter.Card do
+defmodule Drafter.Structs.Card do
   defstruct [:name, :set, :rarity, :color, :mc, :cmc, :type, :picURL, :pt, :pic]
 
   alias __MODULE__

@@ -5,6 +5,7 @@ defmodule Drafter.Handler.Consumer do
 
   alias Drafter.Pod.Registry
 
+  @spec start_link :: :ignore | {:error, any} | {:ok, pid}
   def start_link do
     IO.puts("started consumer!")
     Consumer.start_link(__MODULE__)
@@ -18,12 +19,13 @@ defmodule Drafter.Handler.Consumer do
     end
   end
 
-  @spec handle_event(Nostrum.Consumer.message_create()) :: :ok | :ignore
-  def handle_event({:MESSAGE_CREATE, msg, _ws_state}) do
+  @spec dispatch(Nostrum.Struct.Message.t()) :: :ok | :ignore
+  defp dispatch(msg) do
     case hack(msg) do
       {"!ping", _args} ->
         Api.create_message(msg.channel_id, "pyongyang!")
 
+      # i am literally going to rewrite all of load
       {"!load", [name]} ->
         case msg.attachments do
           [set | _tail] ->
@@ -63,6 +65,12 @@ defmodule Drafter.Handler.Consumer do
       _ ->
         :ignore
     end
+  end
+
+  @spec handle_event(Nostrum.Consumer.message_create()) :: :ok
+  def handle_event({:MESSAGE_CREATE, msg, _ws_state}) do
+    Task.async(fn -> dispatch(msg) end)
+    :ok
   end
 
   # Default event handler, if you don't include this, your consumer WILL crash if

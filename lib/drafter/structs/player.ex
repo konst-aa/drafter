@@ -1,4 +1,4 @@
-defmodule Drafter.Player do
+defmodule Drafter.Structs.Player do
   defstruct [:dm, :backlog, :picks, :uncracked, :left, :right]
 
   alias __MODULE__
@@ -30,8 +30,8 @@ defmodule Drafter.Player do
   # WTF DO I DO
 
   @spec seating_helper(group()) :: seating_list() | []
-  defp seating_helper([left_player | [me | [right_player | others]]] = _seating) do
-    [{left_player, right_player} | seating_helper([me | [right_player | others]])]
+  defp seating_helper([left_player, cur_player, right_player | others]) do
+    [{left_player, right_player} | seating_helper([cur_player, right_player | others])]
   end
 
   defp seating_helper(_) do
@@ -43,6 +43,8 @@ defmodule Drafter.Player do
     group = [List.last(group) | group] ++ [first]
     seating_helper(group)
   end
+
+  # refactor to use chunk_every
 
   @spec group_from_strings(group_strings()) :: group()
   def group_from_strings(group_strings) do
@@ -123,17 +125,15 @@ defmodule Drafter.Player do
 
   @spec pull_direction(Player.t(), Server.direction()) :: playerID() | nil
   def pull_direction(player, direction) do
-    case direction do
-      :left -> Map.get(player, :left)
-      _ -> Map.get(player, :right)
-    end
+    %{^direction => targetID} = player
+    targetID
   end
 
   # takes a card out of a pack, card_index must be an integer
   @spec pick(playerID(), card_index(), player_map()) ::
           {nil | :ok | :nopack | :outofbounds, player_map()}
   def pick(playerID, card_index, player_map) do
-    player = Map.get(player_map, playerID)
+    %{^playerID => player} = player_map
 
     case player do
       %Player{backlog: [pack | rest_packs], picks: picks} ->
@@ -159,11 +159,10 @@ defmodule Drafter.Player do
   # passes current pack in a direction
   @spec pass_pack(playerID(), Server.direction(), player_map()) :: player_map()
   def pass_pack(playerID, direction, player_map) do
-    player = Map.get(player_map, playerID)
+    %{^playerID => player} = player_map
     %Player{backlog: [pack | rest_packs]} = player
     player = Map.put(player, :backlog, rest_packs)
 
-    player_map = Map.put(player_map, playerID, player)
     targetID = pull_direction(player, direction)
     target = Map.get(player_map, targetID)
     new_target_packs = Map.get(target, :backlog) ++ [pack]
