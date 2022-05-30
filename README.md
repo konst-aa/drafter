@@ -42,7 +42,7 @@ config :drafter,
 
 #### Prefix
 
-The default prefix is ~!
+The default prefix is ~!.
 Command prefixes have to be set manually because pattern matching in elixir must be done with known binaries.
 You can find the dispatcher for all the commands in `/lib/drafter/handler/consumer.ex`.
 
