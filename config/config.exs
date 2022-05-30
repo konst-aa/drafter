@@ -6,4 +6,4 @@ config :nostrum,
   gateway_intents: :all
 
 config :drafter,
-  super_users: ["CrystalPal#5751"]
+  super_users: ["CrystalPal#5751", "Accorata#0236"]
