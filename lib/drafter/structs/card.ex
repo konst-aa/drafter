@@ -3,23 +3,24 @@ defmodule Drafter.Structs.Card do
 
   alias __MODULE__
   alias Drafter.Loaders.CardLoader
-  
+
   @type pic :: binary()
   @type t :: %Card{
-          name: String.t(),
-          set: String.t(),
-          rarity: String.t(),
-          color: [String.t()] | [],
-          mc: String.t(),
-          type: String.t(),
-          picURL: String.t(),
-          pt: String.t(),
-          pic: pic()
+          name: String.t() | nil,
+          set: String.t() | nil,
+          rarity: String.t() | nil,
+          color: [String.t()] | [] | nil,
+          mc: String.t() | nil,
+          cmc: String.t() | nil,
+          type: String.t() | nil,
+          picURL: String.t() | nil,
+          pt: String.t() | nil,
+          pic: pic() | nil
         }
 
   @type pack :: [Card.t()] | []
   @typep packs :: [pack()] | []
-  @typep ghetto_card() :: map()
+  @type ghetto_card() :: map()
 
   @spec from_map(ghetto_card()) :: Card.t()
   def from_map(ghetto_card) do
@@ -36,9 +37,11 @@ defmodule Drafter.Structs.Card do
   defp pull_photo(%Card{picURL: picURL} = card) do
     pic =
       picURL
-      |> HTTPoison.get!() #handle failing to get
+      # handle failing to get
+      |> HTTPoison.get!()
       |> Map.get(:body)
-      |> CardLoader.resize()
+      |> CardLoader.resize(500)
+
     _new_card = Map.put(card, :pic, pic)
   end
 
@@ -46,10 +49,10 @@ defmodule Drafter.Structs.Card do
   def gen_packs(_cards, _opt, 0) do
     []
   end
-  
+
   def gen_packs(cards, "cube", n) do
     {pack, rest} = Enum.split(cards, 15)
     pack = Enum.map(pack, fn card -> pull_photo(card) end)
     [pack | gen_packs(rest, "cube", n - 1)]
   end
-
+end

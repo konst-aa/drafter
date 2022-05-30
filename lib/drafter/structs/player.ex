@@ -4,10 +4,9 @@ defmodule Drafter.Structs.Player do
   alias __MODULE__
 
   alias Drafter.Pod.Server
-  alias Drafter.Card
-  # alias Drafter.Packloader.Server, as: PackLoader
+  alias Drafter.Structs.Card
 
-  @typep dm :: Nostrum.Struct.Channel.dm_channel()
+  @type dm :: Nostrum.Struct.Channel.dm_channel()
   @typep dms :: [dm()] | []
   @type playerID :: integer()
   @type group :: [playerID()] | []
@@ -80,9 +79,9 @@ defmodule Drafter.Structs.Player do
     []
   end
 
-  @spec gen_player_map(Server.set(), Server.option(), group(), Server.loader_name()) ::
+  @spec gen_player_map(Server.set(), Server.option(), group()) ::
           player_map()
-  def gen_player_map(set, "cube", group, loader_name) do
+  def gen_player_map(set, "cube", group) do
     loaded_set = Enum.map(set, &Card.from_map/1)
     dms = gen_dms(group)
 
@@ -95,7 +94,7 @@ defmodule Drafter.Structs.Player do
 
     seats = seating(group)
     cards = Enum.shuffle(loaded_set)
-    packs = Card.gen_packs(cards, "cube", length(group) * 3, loader_name)
+    packs = Card.gen_packs(cards, "cube", length(group) * 3)
     player_info = gen_helper(dms, packs, seats, "cube")
 
     _players =
@@ -172,16 +171,5 @@ defmodule Drafter.Structs.Player do
       player_map
       |> Map.put(playerID, player)
       |> Map.put(targetID, target)
-  end
-
-  @spec text_picks(Player.t()) :: {dm(), String.t()}
-  def text_picks(player) do
-    message =
-      player
-      |> Map.get(:picks)
-      |> Enum.map(fn card -> Map.get(card, :name) end)
-      |> Enum.join("\n")
-
-    {Map.get(player, :dm), message}
   end
 end

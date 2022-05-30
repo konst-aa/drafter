@@ -1,0 +1,33 @@
+[
+  {
+    "cmc": "3",
+    "color": "Blue",
+    "mc": "2U",
+    "name": "Whale Visions",
+    "picURL": "https://cdn.discordapp.com/attachments/699985664992739409/699992833645346816/ri2sj4suvzb31.png",
+    "rarity": "common",
+    "set": "HLC",
+    "type": "Sorcery"
+  },
+  {
+    "cmc": "2",
+    "color": "Black",
+    "mc": "1B",
+    "name": "Trolley Problem",
+    "picURL": "https://cdn.discordapp.com/attachments/699985664992739409/699987641164365864/8rzn84tv99f31.jpg",
+    "rarity": "common",
+    "set": "HLC",
+    "type": "Sorcery"
+  },
+  {
+    "cmc": "2",
+    "color": "WhiteBlack",
+    "mc": "BW",
+    "name": "Corpse Knight",
+    "picURL": "https://cdn.discordapp.com/attachments/699985664992739409/699993263964422244/w9flwig3lqb31.jpg",
+    "pt": "2/3",
+    "rarity": "common",
+    "set": "HLC",
+    "type": "Creature"
+  }
+]

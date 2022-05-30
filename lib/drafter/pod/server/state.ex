@@ -1,7 +1,9 @@
 defmodule Drafter.Pod.Server.State do
-  defstruct [:status, :set, :option, :group, :loader_name, :player_map, :conditions]
-  
+  defstruct [:status, :set, :option, :group, :player_map, :conditions]
+
   alias Drafter.Structs.Player
+  alias Drafter.Loaders.CardLoader
+  alias Drafter.Loaders.SetLoader
 
   @type pod_string :: String.t()
 
@@ -9,7 +11,6 @@ defmodule Drafter.Pod.Server.State do
   @type option :: String.t()
   @type channelID :: Nostrum.Struct.Channel.id()
   @type pod_pid :: pid()
-  @type loader_name :: atom()
   @type direction :: :left | :right
 
   @typep pack_number :: integer()
@@ -26,66 +27,70 @@ defmodule Drafter.Pod.Server.State do
   @typep running_state :: %__MODULE__{
            status: :running,
            option: option(),
-           loader_name: loader_name(),
            player_map: Player.player_map(),
            conditions: conditions()
          }
 
-  @type t :: running_state() | waiting_state() 
+  @type t :: running_state() | waiting_state()
 
   # running
-  @spec read_cur_pack(loader_name(), Player.t(), pack_number()) :: :ok
-  defp read_cur_pack(loader_name, %Player{dm: dm, backlog: backlog}, pack_number) do
+  @spec read_cur_pack(Player.t(), pack_number()) :: :ok
+  defp read_cur_pack(%Player{dm: dm, backlog: backlog}, pack_number) do
     [pack | _] = backlog
-    content = "pack #{pack_number} pick #{16 - length(pack)}"
-    Nostrum.Api.create_message(dm.id, content)
-    Packloader.Server.send_cards(loader_name, dm, pack)
+    CardLoader.send_pack(pack, 5, dm, "pack #{pack_number} pick #{16 - length(pack)}")
+    :ok
   end
 
-  @spec crack_and_read_all(loader_name(), Player.player_map(), pack_number()) ::
+  @spec text_picks(Player.t()) :: :ok
+  defp text_picks(%{dm: dm, picks: picks}) do
+    picks_string =
+      picks
+      |> Enum.map(fn card -> Map.get(card, :name) end)
+      |> Enum.join("\n")
+
+    Nostrum.Api.create_message!(dm.id, "draft over, picks:" <> picks_string)
+    :ok
+  end
+
+  @spec crack_and_read_all(Player.player_map(), pack_number()) ::
           Player.player_map()
-  defp crack_and_read_all(loader_name, player_map, pack_number) do
+  defp crack_and_read_all(player_map, pack_number) do
     new_players = Player.crack_all(player_map)
 
     Enum.map(new_players, fn {_, playerID} ->
-      read_cur_pack(loader_name, playerID, pack_number)
+      read_cur_pack(playerID, pack_number)
     end)
 
     new_players
   end
 
-  @spec gen_running_state(waiting_state()) ::
+  @spec gen_running_state(waiting_state(), channelID()) ::
           running_state() | :nullset
-  defp gen_running_state(state) do
+  defp gen_running_state(state, channelID) do
     %__MODULE__{set: set, option: option, group: group} = state
-    contents = File.read!("./sets/sets.json")
-    sets = JSON.decode!(contents)
-    IO.puts("starting")
 
-    case Map.get(sets, set, :undefined) do
-      :undefined ->
-        # send the message !
-        # Kill the process? 
-        :nullset
-
-      set ->
-        player_map = Player.gen_player_map(set, option, Map.keys(group), loader_name)
+    case SetLoader.load_set(set) do
+      {:ok, set} ->
+        player_map = Player.gen_player_map(set, option, Map.keys(group))
 
         # crack the packs
         pack_number = 1
-        player_map = crack_and_read_all(loader_name, player_map, pack_number)
+        player_map = crack_and_read_all(player_map, pack_number)
 
         # celebrate
         IO.puts("player_map generated, draft started")
         conditions = %{direction: :left, pack_number: pack_number}
 
-         %__MODULE__{
-           loader_name: loader_name,
-           option: option,
-           player_map: player_map,
-           conditions: conditions,
-           status: :running
-         }
+        %__MODULE__{
+          option: option,
+          player_map: player_map,
+          conditions: conditions,
+          status: :running
+        }
+
+      {:error, reason} ->
+        Nostrum.Api.create_message!(channelID, "failure!" <> Atom.to_string(reason))
+        :nullset
     end
   end
 
@@ -94,16 +99,15 @@ defmodule Drafter.Pod.Server.State do
   defp flip(:right), do: :left
   @spec flip(:left) :: :right
   defp flip(:left), do: :right
-  
+
   # rewrite this probably?
   @spec passed_messages(
-          loader_name(),
           Player.playerID(),
           Player.player_map(),
           direction(),
           pack_number()
         ) :: :ok | nil | :passed | :next | :over
-  defp passed_messages(loader_name, playerID, player_map, direction, pack_number) do
+  defp passed_messages(playerID, player_map, direction, pack_number) do
     crack? =
       player_map
       |> Map.values()
@@ -117,13 +121,13 @@ defmodule Drafter.Pod.Server.State do
 
       case playerID do
         %Player{backlog: [[] | _]} -> nil
-        %Player{backlog: [_pack | _]} -> read_cur_pack(loader_name, playerID, pack_number)
+        %Player{backlog: [_pack | _]} -> read_cur_pack(playerID, pack_number)
         _ -> nil
       end
 
       case target do
         %Player{backlog: [[] | _]} -> nil
-        %Player{backlog: [_pack | []]} -> read_cur_pack(loader_name, target, pack_number)
+        %Player{backlog: [_pack | []]} -> read_cur_pack(target, pack_number)
         _ -> nil
       end
 
@@ -143,9 +147,9 @@ defmodule Drafter.Pod.Server.State do
   @spec init({set(), option(), Player.group()}) :: waiting_state()
   def init({set, option, group}) do
     %__MODULE__{
-      set: set, 
+      set: set,
       option: option,
-      status: :waiting, 
+      status: :waiting,
       group: Map.new(group, fn x -> {x, false} end)
     }
   end
@@ -157,10 +161,10 @@ defmodule Drafter.Pod.Server.State do
     vals = Map.values(group)
 
     if Enum.all?(vals) do
-      gen_running_state(state)
+      gen_running_state(state, channelID)
     else
       Nostrum.Api.create_message(channelID, "verified!")
-      state
+      Map.put(state, :group, group)
     end
   end
 
@@ -168,12 +172,10 @@ defmodule Drafter.Pod.Server.State do
   @spec pick(running_state(), Player.playerID(), Player.card_index()) :: running_state()
   def pick(state, playerID, card_index) do
     %__MODULE__{
-      player_map: player_map, 
-      loader_name: loader_name, 
-      option: option, 
+      player_map: player_map,
+      option: _option,
       conditions: conditions
-    } =
-      state
+    } = state
 
     case Player.pick(playerID, card_index, player_map) do
       {:outofbounds, _} ->
@@ -185,27 +187,33 @@ defmodule Drafter.Pod.Server.State do
         state
 
       {:ok, new_player_map} ->
+        dm =
+          new_player_map
+          |> Map.get(playerID)
+          |> Map.get(:dm)
+
+        Nostrum.Api.create_message(dm.id, "pack passed")
         %{direction: direction, pack_number: pack_number} = conditions
         new_player_map = Player.pass_pack(playerID, direction, new_player_map)
 
-        case passed_messages(loader_name, playerID, new_player_map, direction, pack_number) do
+        case passed_messages(playerID, new_player_map, direction, pack_number) do
           :over ->
             # end the draft
             new_player_map
-            |> Enum.map(fn {_id, player} -> Player.text_picks(player) end)
-            |> Enum.map(fn {dm, msg} ->
-              Nostrum.Api.create_message(dm.id, "draft over, picks: \n" <> msg)
-            end)
+            |> Map.values()
+            |> Enum.map(&text_picks/1)
 
             Process.exit(self(), :draftover)
 
           :next ->
             new_number = pack_number + 1
-            new_player_map = crack_and_read_all(loader_name, new_player_map, new_number)
-            new_conditions  = %{direction: flip(direction), pack_number: new_number}
+            new_player_map = crack_and_read_all(new_player_map, new_number)
+            new_conditions = %{direction: flip(direction), pack_number: new_number}
+
             state
             |> Map.put(:player_map, new_player_map)
             |> Map.put(:conditions, new_conditions)
+
           :passed ->
             Map.put(state, :player_map, new_player_map)
         end
@@ -215,12 +223,10 @@ defmodule Drafter.Pod.Server.State do
   @spec list_picks(running_state(), Player.playerID()) :: running_state()
   def list_picks(state, playerID) do
     %__MODULE__{player_map: player_map} = state
-    {dm, msg} =
-      player_map
-      |> Map.get(playerID)
-      |> Player.text_picks()
-      # write loader ffs!!!! move text_picks out of player 
-    Nostrum.Api.create_message(dm.id, msg)
+
+    %{dm: dm, picks: picks} = Map.get(player_map, playerID)
+
+    CardLoader.send_pack(picks, 6, dm, "picks:")
     state
   end
 end

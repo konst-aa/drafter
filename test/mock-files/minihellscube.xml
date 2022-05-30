@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cockatrice_carddatabase version="3">
+<sets>
+<set>
+<name>HLC</name>
+<longname>r/HellsCube</longname>
+<settype>Custom</settype><releasedate></releasedate>
+</set>
+
+<set>
+<name>HLCT</name>
+<longname>r/HellsCubeTokens</longname>
+<settype>Custom</settype><releasedate></releasedate>
+</set>
+</sets>
+
+<cards><card>
+<name>Whale Visions</name>
+<set rarity="common" picURL="https://cdn.discordapp.com/attachments/699985664992739409/699992833645346816/ri2sj4suvzb31.png">HLC</set>
+<color>Blue</color>
+<manacost>2U</manacost>
+<cmc>3</cmc>
+<type>Sorcery</type>
+</card>
+
+<card>
+<name>Trolley Problem</name>
+<set rarity="common" picURL="https://cdn.discordapp.com/attachments/699985664992739409/699987641164365864/8rzn84tv99f31.jpg">HLC</set>
+<color>Black</color>
+<manacost>1B</manacost>
+<cmc>2</cmc>
+<type>Sorcery</type>
+</card>
+
+<card>
+<name>Corpse Knight</name>
+<set rarity="common" picURL="https://cdn.discordapp.com/attachments/699985664992739409/699993263964422244/w9flwig3lqb31.jpg">HLC</set>
+<color>White</color>
+<color>Black</color>
+<manacost>BW</manacost>
+<cmc>2</cmc>
+<type>Creature</type> <pt>2/3</pt>
+</card>
+</cards>
+</cockatrice_carddatabase>
+</xml>
