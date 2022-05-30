@@ -19,8 +19,6 @@ cd drafter-ex
 mix deps.get
 ```
 
-Make sure that your bot has all gateway intents, then paste your bot token into the config file found in `/config/config.exs`
-
 ## Configuration
 
 The config file can be found in `/config/config.exs`
