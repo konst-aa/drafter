@@ -64,6 +64,8 @@ Will attempt to load the set once all players ready up.
 
 Option: currently the only supported option is "cube". All cards are singleton, 15 cards per pack.
 Group: pings to players participating in the pod separated by spaces.
+Seating order is in the order of the group, with the last player being on the first player's left.
+Passing starts to the right, then flips after each pack.
 
 Example:
 ```
