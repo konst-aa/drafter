@@ -94,7 +94,7 @@ defmodule Drafter.Loaders.SetLoader.State do
   # parsing is better done asynchronously to not clog up the loader
   @spec save_set(t(), message(), set_name()) :: t()
   def save_set(set_folder, message_with_set, set_name) do
-    Task.async(fn -> unpacker(message_with_set, set_name) end)
+    Task.start(fn -> unpacker(message_with_set, set_name) end)
     set_folder
   end
 
