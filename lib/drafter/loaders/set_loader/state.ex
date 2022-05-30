@@ -91,13 +91,14 @@ defmodule Drafter.Loaders.SetLoader.State do
     set_folder
   end
 
+  # parsing is better done asynchronously to not clog up the loader
   @spec save_set(t(), message(), set_name()) :: t()
   def save_set(set_folder, message_with_set, set_name) do
     Task.async(fn -> unpacker(message_with_set, set_name) end)
     set_folder
   end
 
-  # not called by anything!!
+  # actually writes the set
   @spec write_set(t(), message(), set_name(), set_list()) :: t()
   def write_set(set_folder, message_with_set, set_name, set_list) do
     IO.inspect(set_folder)
