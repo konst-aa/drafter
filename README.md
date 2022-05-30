@@ -105,7 +105,7 @@ Readies you up if you're in a pod.
 
 #### ~!pick index
 
-INDEX IS 0 INDEXED
+INDEX IS 0 INDEXED!
 Picks the card at index in your current pack.
 The top left card in a pack is the 0th card in the pack. The bottom right card is the last.
 
