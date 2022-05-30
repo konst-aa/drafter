@@ -43,23 +43,23 @@ An example xml could be found at ```/test/mock-files/minihellscube.xml```
 Note that set-name doesn't contain the ```.json``` extension.
 ### Super User Commands
 
-#### save set-name
+#### ~!save set-name
 Saves attached xml as json in sets/set-name.json
 
-#### delete set-name
+#### ~!delete set-name
 Deletes file in sets/set-name.json
 
-#### killall
+#### ~!killall
 Kills all pods.
 
-#### kill pod-name
+#### ~!kill pod-name
 Kills pod named pod-name.
 
 ### Regular Commands
-#### list
+#### ~!list
 Prints out all the names of saved sets.
 
-#### draft set option group
+#### ~!draft set option group
 Will attempt to load the set once all players ready up.
 
 Option: currently the only supported option is "cube". All cards are singleton, 15 cards per pack.
@@ -69,21 +69,21 @@ Example:
 ```
 ~!draft hlc cube @CrystalPal#5751 @Accorata#0236
 ```
-#### ready
+#### ~!ready
 Readies you up if you're in a pod.
-#### pick index
+#### ~!pick index
 INDEX IS 0 INDEXED
 Picks the card at index in your current pack.
 The top left card in a pack is the 0th card in the pack. The bottom right card is the last.
 
-#### picks
+#### ~!picks
 Returns an image of your current picks
 ### Maintenance Commands
-#### ping
+#### ~!ping
 We all know what this does
-#### prune
+#### ~!prune
 Unassigns players from dead pods
-#### help
+#### ~!help
 Sends a link to the commands section of the readme.
 ## Next steps:
 More options, cleaner code. Also, I'm planning on contributing to [Temp](https://github.com/danhper/elixir-temp) to automatically clean up directories.
