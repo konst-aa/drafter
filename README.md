@@ -90,7 +90,8 @@ Will attempt to load the set once all players ready up.
 
 Option: currently the only supported option is "cube". All cards are singleton, 15 cards per pack.
 Group: pings to players participating in the pod separated by spaces.
-Seating order is in the order of the group, with the last player being on the first player's left.
+Seating order is in the order of the group, and wraps around. 
+(The player to the left of the first player is the last player and vice versa).
 Passing starts to the right, then flips after each pack.
 
 Example:
@@ -111,7 +112,7 @@ The top left card in a pack is the 0th card in the pack. The bottom right card i
 
 #### ~!picks
 
-Returns an image of your current picks
+DMs an image of your current picks
 
 ### Maintenance Commands
 
