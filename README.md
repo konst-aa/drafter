@@ -4,7 +4,7 @@ This is a simple bot that organizes magic the gathering drafts.
 
 ## Installation
 
-This thing depends on [ImageMagick](https://imagemagick.org/script/download.php) for concatenating card images.
+Drafter depends on [ImageMagick](https://imagemagick.org/script/download.php) for concatenating card images.
 If you have brew installed, you can get it with:
 
 ```shell
