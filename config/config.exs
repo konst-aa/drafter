@@ -2,7 +2,7 @@ import Config
 
 config :nostrum,
   # The token of your bot as a string
-  token: "OTU3NjkxMjM0NzQ5NjQ0ODUw.GaSdO6.qtnBvlMrrEuW4rGAWx5VRUv6PZn1Hfj8LtSMtM",
+  token: "outta here",
   gateway_intents: :all
 
 config :drafter,
