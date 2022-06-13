@@ -64,7 +64,7 @@ defmodule Drafter.Handler.Consumer do
         Registry.list_picks(msg.author.id, msg.channel_id)
 
       {"~!help", _, _} ->
-        Api.create_message(msg.channel_id, "https://github.com/konstantin-aa/drafter-ex#commands")
+        Api.create_message(msg.channel_id, "https://github.com/konstantin-aa/drafter#commands")
 
       # maintenance
       {"~!ping", _, _} ->
