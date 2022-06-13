@@ -3,10 +3,7 @@
 This is a simple bot that organizes magic the gathering drafts.
 
 ## Installation
-Make sure you have elixir installed.
-```shell
-brew install elixir
-```
+Make sure you have elixir installed. [Installation instructions](https://elixir-lang.org/install.html)
 
 Drafter depends on [ImageMagick](https://imagemagick.org/script/download.php) for concatenating card images.
 If you have brew installed, you can get it with:
